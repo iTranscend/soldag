@@ -11,7 +11,7 @@ async fn init() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    logger::setup();
 
     info!("SolDag started, initializing services....");
 
