@@ -14,5 +14,6 @@ solana-client = "2.2.0"
 solana-rpc-client-api = "2.2.1"
 solana-sdk = "2.2.1"
 solana-transaction-status-client-types = "2.2.1"
+sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio"] }
 tokio = { version = "1.43.0", features = ["rt", "macros", "rt-multi-thread"] }
 url = "2.5.4"
