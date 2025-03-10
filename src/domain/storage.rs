@@ -1,52 +1,44 @@
-use anyhow::Ok;
-use log::info;
-use solana_sdk::{hash::Hash, pubkey::Pubkey};
-use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
-struct Header {
-    num_readonly_signed_accounts: u8,
-    num_readonly_unsigned_accounts: u8,
-    num_required_signatures: u8,
-}
+use mongodb::{bson::extjson::de::Error, results::InsertOneResult, Client, Collection};
 
-struct Instruction {
-    accounts: Vec<u8>,
-    data: Vec<u8>,
-    program_id_index: u8,
-    stack_height: u8,
-}
-
-struct Message {
-    account_keys: Vec<Pubkey>,
-    header: Header,
-    instructions: Vec<Instruction>,
-    recent_block_hash: Hash,
-}
-
-pub struct Transaction {
-    message: Message,
-    signatures: Vec<String>,
-}
+use super::models::transaction::Transaction;
 
 pub struct Storage {
-    pool: PgPool,
+    pub transactions: Collection<Transaction>,
+    // pub accounts: Collection<Account>
 }
 
 impl Storage {
-    pub async fn new(database_url: &str) -> anyhow::Result<Arc<Self>> {
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(database_url)
-            .await?;
+    pub async fn init() -> anyhow::Result<Arc<Self>> {
+        let uri = match env::var("MONGO_URI") {
+            Ok(v) => v.to_string(),
+            Err(_) => "mongodb://localhost:27017/?directConnection=true".to_string(),
+        };
 
-        info!("Running migrations");
-        sqlx::migrate!("./migrations").run(&pool).await?;
+        let client = Client::with_uri_str(uri).await?;
+        let db = client.database("soldag");
 
-        Ok(Arc::new(Self { pool }))
+        let transactions: Collection<Transaction> = db.collection("transactions");
+        // let accounts: Collection<Account> = db.collection("account");
+
+        Ok(Arc::new(Storage {
+            transactions,
+            // accounts,
+        }))
     }
 
-    pub async fn insert_transaction(&self, transaction: &Transaction) -> anyhow::Result<()> {
-        Ok(())
+    pub async fn insert_transaction(
+        &self,
+        transaction: Transaction,
+    ) -> Result<InsertOneResult, Error> {
+        let result = self
+            .transactions
+            .insert_one(transaction)
+            .await
+            .ok()
+            .expect("Error inserting transaction");
+
+        Ok(result)
     }
 }

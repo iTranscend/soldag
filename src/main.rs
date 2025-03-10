@@ -1,7 +1,7 @@
 use clap::Parser;
 use log::{error, info};
 
-use domain::utils::PostgresUrl;
+use domain::storage::Storage;
 
 mod api;
 mod cli;
@@ -14,10 +14,7 @@ async fn init() -> anyhow::Result<()> {
 
     dotenv::dotenv().ok();
 
-    // Collect db url from env variables
-    let database_url = PostgresUrl::from_env()?.to_string();
-
-    let storage = domain::storage::Storage::new(&database_url).await?;
+    let storage = Storage::init().await?;
 
     let indexer = indexer::Indexer::new(args.rpc_url, args.rpc_api_key.as_deref(), storage).await?;
 
