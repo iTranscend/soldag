@@ -7,7 +7,9 @@ use solana_client::{
 };
 use solana_rpc_client_api::response::Response;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
-use solana_transaction_status_client_types::{TransactionDetails, UiTransactionEncoding};
+use solana_transaction_status_client_types::{
+    TransactionDetails, UiConfirmedBlock, UiTransactionEncoding,
+};
 use url::Url;
 
 use crate::domain::storage::Storage;
@@ -71,9 +73,27 @@ impl Indexer {
 
             dbg!(&block);
 
-            // store
+            // process and store block
+            self.process_block(&block).await?;
 
             tokio::time::sleep(tokio::time::Duration::from_millis(update_interval as u64)).await;
         }
+    }
+
+    pub async fn process_block(&self, block: &UiConfirmedBlock) -> anyhow::Result<()> {
+        match &block.transactions {
+            Some(transactions) => {
+                for transaction in transactions.iter() {
+                    self.storage
+                        .insert_transaction(transaction.clone().try_into()?)
+                        .await?;
+                }
+            }
+            None => {
+                log::warn!("Block {} has no transactions", block.parent_slot);
+            }
+        }
+
+        Ok(())
     }
 }
