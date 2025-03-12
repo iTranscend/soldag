@@ -2,7 +2,7 @@ use std::{env, sync::Arc};
 
 use chrono::{DateTime, Days, Utc};
 use mongodb::{
-    bson::{self, doc, extjson::de::Error, oid::ObjectId, Bson, Document},
+    bson::{doc, Document},
     options::FindOptions,
     results::InsertOneResult,
     Client, Collection,
@@ -12,7 +12,6 @@ use super::models::transaction::Transaction;
 
 pub struct Storage {
     pub transactions: Collection<Transaction>,
-    // pub accounts: Collection<Account>
 }
 
 impl Storage {
@@ -26,12 +25,8 @@ impl Storage {
         let db = client.database("soldag");
 
         let transactions: Collection<Transaction> = db.collection("transactions");
-        // let accounts: Collection<Account> = db.collection("account");
 
-        Ok(Arc::new(Storage {
-            transactions,
-            // accounts,
-        }))
+        Ok(Arc::new(Storage { transactions }))
     }
 
     pub async fn insert_transaction(
@@ -73,8 +68,6 @@ impl Storage {
             );
         }
 
-        dbg!(&query);
-
         let (total, mut cursor) = tokio::try_join!(
             self.transactions.count_documents(query.clone()),
             self.transactions.find(query).with_options(
@@ -88,35 +81,12 @@ impl Storage {
         let next = count.saturating_add(offset);
         let next = (next < total).then_some(next);
 
-        // dbg!(&cursor.current());
         let mut transactions: Vec<Transaction> = Vec::new();
 
         while cursor.advance().await? {
-            // dbg!(&cursor.current());
             transactions.push(cursor.deserialize_current()?);
         }
 
-        // let transactions = cursor
-        //     .try_collect::<Vec<Transaction>>()
-        //     .await?;
-
         Ok((transactions, next))
     }
-
-    // pub async fn get_transaction_by_id(&self, id: String) -> Result<Transaction, anyhow::Error> {
-    // // pub async fn get_transaction_by_id(&self) -> Result<Transaction, anyhow::Error> {
-    //     let mut document = Document::new();
-    //     // document.insert("id", id);
-    //     document.insert("_id", id);
-    //     let transaction = match self
-    //         .transactions
-    //         .find_one(document)
-    //         .await?
-    //         {
-    //             Some(transaction) => transaction,
-    //             None => return Err(anyhow::anyhow!("Transaction not found")),
-    //         };
-    //         Ok(transaction)
-    //     }
-    // .find_one(doc! { "_id": ObjectId::parse_str("67d05a4682aee97fad3348dc".to_string())? })
 }

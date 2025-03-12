@@ -1,5 +1,5 @@
-use eyre::{bail, eyre, OptionExt};
-use mongodb::bson::{oid::ObjectId, RawDocument};
+use eyre::{bail, OptionExt};
+use mongodb::bson;
 use serde::{Deserialize, Serialize};
 use solana_transaction_status_client_types::{
     EncodedTransaction, EncodedTransactionWithStatusMeta, UiMessage, UiRawMessage,
@@ -8,7 +8,6 @@ use solana_transaction_status_client_types::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transaction {
-    // pub _id: ObjectId,
     pub signature: String,
     pub message: UiRawMessage,
     pub meta: UiTransactionStatusMeta,
@@ -32,7 +31,6 @@ impl TryFrom<EncodedTransactionWithStatusMeta> for Transaction {
         };
 
         Ok(Self {
-            // _id: ObjectId::new(),
             signature: transaction_data.signatures[0].clone(),
             message,
             meta,
