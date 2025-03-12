@@ -2,8 +2,11 @@ use std::{str::FromStr, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use log::{error, info};
+use solana_account_decoder_client_types::{UiAccountEncoding, UiDataSliceConfig};
 use solana_client::{
-    nonblocking::rpc_client::RpcClient, rpc_config::RpcBlockConfig, rpc_request::RpcRequest,
+    nonblocking::rpc_client::RpcClient,
+    rpc_config::{RpcAccountInfoConfig, RpcBlockConfig},
+    rpc_request::RpcRequest,
     rpc_response::RpcBlockhash,
 };
 use solana_rpc_client_api::response::Response;
@@ -99,9 +102,22 @@ impl Indexer {
 
     pub async fn get_account(&self, pubkey: String) -> eyre::Result<Account> {
         let pubkey = Pubkey::from_str(&pubkey)?;
+        let config = RpcAccountInfoConfig {
+            encoding: Some(UiAccountEncoding::Base64Zstd),
+            data_slice: Some(UiDataSliceConfig {
+                offset: 0,
+                length: 20,
+            }),
+            commitment: Some(CommitmentConfig {
+                commitment: CommitmentLevel::Finalized,
+                ..Default::default()
+            }),
+            min_context_slot: None,
+        };
+
         if let Some(account) = self
             .client
-            .get_account_with_commitment(&pubkey, CommitmentConfig::finalized())
+            .get_account_with_config(&pubkey, config)
             .await?
             .value
         {
