@@ -1,3 +1,13 @@
+//! SolDag - A Solana blockchain data aggregator.
+//!
+//! SolDag is a high-performance application that indexes and serves Solana blockchain
+//! data. It consists of two main services:
+//! 1. An indexer that processes blockchain data and stores it in MongoDB
+//! 2. A REST API that provides access to the indexed data
+//!
+//! The application is built with reliability in mind, featuring automatic service
+//! recovery and concurrent processing of blockchain data.
+
 use clap::Parser;
 use log::{error, info};
 
@@ -9,6 +19,22 @@ mod domain;
 pub mod indexer;
 mod logger;
 
+/// Initializes application services and starts processing.
+///
+/// This function sets up the environment, establishes database connections,
+/// and starts both the indexer and API services. It includes automatic
+/// retry logic for service recovery.
+///
+/// # Returns
+///
+/// * `eyre::Result<()>` - Success or error status
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Environment setup fails
+/// * Database connection fails
+/// * Service initialization fails
 async fn init() -> eyre::Result<()> {
     color_eyre::install()?;
 
@@ -49,6 +75,10 @@ async fn init() -> eyre::Result<()> {
     Ok(())
 }
 
+/// Entry point.
+///
+/// Sets up logging and starts the application services. If initialization
+/// fails, SolDag will exit with a non-zero status code.
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     logger::setup();
