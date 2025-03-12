@@ -1,3 +1,9 @@
+//! Storage module for handling MongoDB database operations.
+//!
+//! This module provides the core database functionality for the SolDag application,
+//! managing transaction storage and retrieval operations. It uses MongoDB as the backend
+//! and provides an abstraction layer for database operations.
+
 use std::{env, sync::Arc};
 
 use chrono::{DateTime, Days, Utc};
@@ -10,11 +16,31 @@ use mongodb::{
 
 use super::models::transaction::Transaction;
 
+/// Storage struct representing the MongoDB database connection and collections.
+///
+/// This struct holds the MongoDB collections and provides methods for database operations.
+/// It is designed to be thread-safe and can be shared across different parts of the application.
 pub struct Storage {
+    /// Collection for storing Solana transactions
     pub transactions: Collection<Transaction>,
 }
 
 impl Storage {
+    /// Initializes a new Storage instance with MongoDB connection.
+    ///
+    /// This function creates a new connection to MongoDB using either the MONGO_URI
+    /// environment variable or a default localhost connection string. It sets up the
+    /// database and collections needed for the application.
+    ///
+    /// # Returns
+    ///
+    /// * `eyre::Result<Arc<Self>>` - A thread-safe reference to the Storage instance
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * MongoDB connection fails
+    /// * Database initialization fails
     pub async fn init() -> eyre::Result<Arc<Self>> {
         let uri = match env::var("MONGO_URI") {
             Ok(v) => v.to_string(),
@@ -29,6 +55,19 @@ impl Storage {
         Ok(Arc::new(Storage { transactions }))
     }
 
+    /// Inserts a single transaction into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `transaction` - The transaction to insert
+    ///
+    /// # Returns
+    ///
+    /// * `eyre::Result<InsertOneResult>` - The result of the insertion operation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the insertion fails
     pub async fn insert_transaction(
         &self,
         transaction: Transaction,
@@ -43,6 +82,26 @@ impl Storage {
         Ok(result)
     }
 
+    /// Retrieves transactions from the database with pagination support.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - Optional transaction signature to filter by
+    /// * `day` - Optional date to filter transactions by day
+    /// * `count` - Number of transactions to return
+    /// * `offset` - Number of transactions to skip
+    ///
+    /// # Returns
+    ///
+    /// * `eyre::Result<(Vec<Transaction>, Option<u64>)>` - A tuple containing:
+    ///   - Vector of transactions
+    ///   - Optional next offset for pagination
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * Database query fails
+    /// * Deserialization of results fails
     pub async fn get_transactions(
         &self,
         id: Option<String>,
