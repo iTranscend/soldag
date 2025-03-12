@@ -8,7 +8,6 @@
 use std::{fmt::Debug, net::SocketAddr, sync::Arc};
 
 use axum::{
-    debug_handler,
     extract::{Query, State},
     routing::get,
     Json, Router,
@@ -134,7 +133,6 @@ pub struct AccountResponse {
 /// # Returns
 ///
 /// * `Result<Json<AccountResponse>, (StatusCode, String)>` - Account data or error
-#[debug_handler]
 async fn fetch_account(
     Query(params): Query<AccountQuery>,
     State((_, indexer)): State<(Arc<Storage>, Indexer)>,
