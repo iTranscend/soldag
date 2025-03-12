@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use log::info;
 use solana_client::{
     nonblocking::rpc_client::RpcClient, rpc_config::RpcBlockConfig, rpc_request::RpcRequest,
@@ -12,7 +13,7 @@ use solana_transaction_status_client_types::{
 };
 use url::Url;
 
-use crate::domain::storage::Storage;
+use crate::domain::{models::transaction::Transaction, storage::Storage};
 
 #[derive(Clone)]
 pub struct Indexer {
@@ -25,7 +26,7 @@ impl Indexer {
         rpc_url: Url,
         rpc_api_key: Option<&str>,
         storage: Arc<Storage>,
-    ) -> anyhow::Result<Self> {
+    ) -> eyre::Result<Self> {
         let mut rpc_url = rpc_url;
 
         // Construct rpc url if api key present
@@ -42,7 +43,7 @@ impl Indexer {
         Ok(Self { client, storage })
     }
 
-    pub async fn start(self, update_interval: u64) -> anyhow::Result<()> {
+    pub async fn start(self, update_interval: u64) -> eyre::Result<()> {
         info!("Starting indexer service...");
 
         loop {
@@ -57,8 +58,6 @@ impl Indexer {
 
             let latest_block_slot = latest_blockhash_resp.context.slot;
 
-            info!("SLOT: {}", latest_block_slot);
-
             let config = RpcBlockConfig {
                 encoding: Some(UiTransactionEncoding::Json),
                 transaction_details: Some(TransactionDetails::Full),
@@ -69,24 +68,33 @@ impl Indexer {
                 max_supported_transaction_version: Some(0),
             };
 
-            let block = self.client.get_block_with_config(324916165, config).await?;
+            let block = self
+                .client
+                .get_block_with_config(latest_block_slot, config)
+                .await?;
 
-            dbg!(&block);
 
             // process and store block
             self.process_block(&block).await?;
+
+            info!("Block: {:?} stored", latest_block_slot);
 
             tokio::time::sleep(tokio::time::Duration::from_millis(update_interval as u64)).await;
         }
     }
 
-    pub async fn process_block(&self, block: &UiConfirmedBlock) -> anyhow::Result<()> {
+    pub async fn process_block(&self, block: &UiConfirmedBlock) -> eyre::Result<()> {
+        let block_time = block.block_time;
         match &block.transactions {
             Some(transactions) => {
                 for transaction in transactions.iter() {
-                    self.storage
-                        .insert_transaction(transaction.clone().try_into()?)
-                        .await?;
+                    let mut transaction = Transaction::try_from(transaction.clone())?;
+
+                    transaction.block_time = block_time
+                        .and_then(|t| DateTime::<Utc>::from_timestamp(t, 0))
+                        .map(bson::DateTime::from_chrono);
+
+                    self.storage.insert_transaction(transaction).await?;
                 }
             }
             None => {

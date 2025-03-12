@@ -9,17 +9,20 @@ mod domain;
 mod indexer;
 mod logger;
 
-async fn init() -> anyhow::Result<()> {
+async fn init() -> eyre::Result<()> {
+    color_eyre::install()?;
     let args = cli::Args::parse();
 
     dotenv::dotenv().ok();
 
     let storage = Storage::init().await?;
 
-    let indexer = indexer::Indexer::new(args.rpc_url, args.rpc_api_key.as_deref(), storage).await?;
-
+    let indexer =
+        indexer::Indexer::new(args.rpc_url, args.rpc_api_key.as_deref(), storage.clone()).await?;
     let mut indexer_handle = tokio::spawn(indexer.clone().start(args.update_interval));
-    let mut api_handle = tokio::spawn(api::start(args.api_listen));
+
+    let api = api::Api::new(storage.clone()).await?;
+    let mut api_handle = tokio::spawn(api.clone().start(args.api_listen));
 
     // retry 3 times
     for _ in 1..=3 {
@@ -34,7 +37,7 @@ async fn init() -> anyhow::Result<()> {
                 if let Ok(Err(e)) = res {
                     error!("API service failed: {}", e)
                 }
-                api_handle = tokio::spawn(api::start(args.api_listen))
+                api_handle = tokio::spawn(api.clone().start(args.api_listen))
 
             }
         }
@@ -43,7 +46,7 @@ async fn init() -> anyhow::Result<()> {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> eyre::Result<()> {
     logger::setup();
 
     info!("SolDag started, initializing services....");
