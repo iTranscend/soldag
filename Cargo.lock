@@ -5727,6 +5727,7 @@ dependencies = [
  "mongodb",
  "serde",
  "serde_json",
+ "solana-account",
  "solana-client",
  "solana-rpc-client-api",
  "solana-sdk",

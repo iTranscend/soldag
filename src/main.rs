@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use clap::Parser;
 use log::{error, info};
 
@@ -6,7 +8,7 @@ use domain::storage::Storage;
 mod api;
 mod cli;
 mod domain;
-mod indexer;
+pub mod indexer;
 mod logger;
 
 async fn init() -> eyre::Result<()> {
@@ -21,8 +23,11 @@ async fn init() -> eyre::Result<()> {
         indexer::Indexer::new(args.rpc_url, args.rpc_api_key.as_deref(), storage.clone()).await?;
     let mut indexer_handle = tokio::spawn(indexer.clone().start(args.update_interval));
 
-    let api = api::Api::new(storage.clone()).await?;
-    let mut api_handle = tokio::spawn(api.clone().start(args.api_listen));
+    let mut api_handle = tokio::spawn(api::start(
+        args.api_listen,
+        storage.clone(),
+        indexer.clone(),
+    ));
 
     // retry 3 times
     for _ in 1..=3 {
@@ -37,7 +42,7 @@ async fn init() -> eyre::Result<()> {
                 if let Ok(Err(e)) = res {
                     error!("API service failed: {}", e)
                 }
-                api_handle = tokio::spawn(api.clone().start(args.api_listen))
+                api_handle = tokio::spawn(api::start(args.api_listen, storage.clone(), indexer.clone()))
 
             }
         }
