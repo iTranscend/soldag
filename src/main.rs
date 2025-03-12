@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use clap::Parser;
 use log::{error, info};
 
@@ -13,9 +11,10 @@ mod logger;
 
 async fn init() -> eyre::Result<()> {
     color_eyre::install()?;
-    let args = cli::Args::parse();
 
     dotenv::dotenv().ok();
+
+    let args = cli::Args::parse();
 
     let storage = Storage::init().await?;
 
