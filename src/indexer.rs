@@ -1,3 +1,10 @@
+//! Indexer module for processing Solana blockchain data.
+//!
+//! This module is responsible for fetching, processing, and storing Solana blockchain
+//! transactions. It runs multiple concurrent tasks to efficiently handle block processing
+//! and catch up with missed blocks. The indexer maintains consistency by tracking the
+//! last processed block and ensuring no blocks are missed.
+
 use std::{str::FromStr, sync::Arc};
 
 use chrono::{DateTime, Utc};
@@ -23,14 +30,38 @@ use url::Url;
 
 use crate::domain::{models::transaction::Transaction, storage::Storage};
 
+/// Core indexer struct managing blockc data processing.
+///
+/// The indexer maintains a connection to a Solana RPC node and tracks block
+/// processing state. It uses channels to coordinate between different processing tasks.
 #[derive(Clone)]
 pub struct Indexer {
+    /// RPC client for Solana blockchain interaction
     client: Arc<RpcClient>,
+    /// Storage interface for persisting processed data
     storage: Arc<Storage>,
+    /// Last processed block slot for tracking progress
     previous_block_slot: Option<u64>,
 }
 
 impl Indexer {
+    /// Creates a new Indexer instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `rpc_url` - URL of the Solana RPC endpoint
+    /// * `rpc_api_key` - Optional API key for RPC access
+    /// * `storage` - Storage instance for persisting data
+    ///
+    /// # Returns
+    ///
+    /// * `eyre::Result<Self>` - Configured indexer instance
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * RPC endpoint is unreachable
+    /// * Health check fails
     pub async fn new(
         rpc_url: Url,
         rpc_api_key: Option<&str>,
@@ -56,6 +87,20 @@ impl Indexer {
         })
     }
 
+    /// Starts the indexer service.
+    ///
+    /// This function initiates three concurrent tasks:
+    /// 1. Main block processing loop
+    /// 2. Block data processing and storage
+    /// 3. Missing block detection and catch-up
+    ///
+    /// # Arguments
+    ///
+    /// * `update_interval` - Milliseconds between block checks
+    ///
+    /// # Returns
+    ///
+    /// * `eyre::Result<()>` - Runs indefinitely unless an error occurs
     pub async fn start(mut self, update_interval: u64) -> eyre::Result<()> {
         info!("Starting indexer service...");
 
@@ -100,6 +145,22 @@ impl Indexer {
         }
     }
 
+    /// Retrieves account information from the Solana blockchain.
+    ///
+    /// # Arguments
+    ///
+    /// * `pubkey` - Public key of the account to fetch
+    ///
+    /// # Returns
+    ///
+    /// * `eyre::Result<Account>` - Account data if found
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * Public key is invalid
+    /// * Account does not exist
+    /// * RPC request fails
     pub async fn get_account(&self, pubkey: String) -> eyre::Result<Account> {
         let pubkey = Pubkey::from_str(&pubkey)?;
         let config = RpcAccountInfoConfig {
@@ -128,6 +189,10 @@ impl Indexer {
     }
 }
 
+/// Creates a configuration for block fetching.
+///
+/// Sets up the RPC configuration for retrieving block data with full
+/// transaction details and finalized commitment.
 fn get_block_config() -> RpcBlockConfig {
     RpcBlockConfig {
         encoding: Some(UiTransactionEncoding::Json),
@@ -140,6 +205,15 @@ fn get_block_config() -> RpcBlockConfig {
     }
 }
 
+/// Processes blocks and stores transactions.
+///
+/// This function runs in a separate task and handles the storage of
+/// transaction data from processed blocks.
+///
+/// # Arguments
+///
+/// * `storage` - Storage instance for persisting data
+/// * `rx` - Channel receiver for block data
 async fn process_block(storage: Arc<Storage>, mut rx: UnboundedReceiver<(UiConfirmedBlock, u64)>) {
     let task = |storage: Arc<Storage>, block: UiConfirmedBlock, slot: u64| async move {
         match &block.transactions {
@@ -170,6 +244,16 @@ async fn process_block(storage: Arc<Storage>, mut rx: UnboundedReceiver<(UiConfi
     }
 }
 
+/// Handles missed block detection and processing.
+///
+/// This function runs in a separate task and ensures no blocks are missed
+/// during normal operation. If gaps are detected, it processes the missing blocks.
+///
+/// # Arguments
+///
+/// * `client` - RPC client for fetching missed blocks
+/// * `store_tx` - Channel sender for block processing
+/// * `rx` - Channel receiver for missed block ranges
 async fn catch_up(
     client: Arc<RpcClient>,
     store_tx: UnboundedSender<(UiConfirmedBlock, u64)>,
@@ -207,6 +291,23 @@ async fn catch_up(
     }
 }
 
+/// Fetches a block from the Solana blockchain with retry logic.
+///
+/// # Arguments
+///
+/// * `client` - RPC client for block fetching
+/// * `config` - Block fetch configuration
+/// * `slot` - Block slot to fetch
+/// * `interval` - Time between retries
+/// * `retries` - Number of retry attempts
+///
+/// # Returns
+///
+/// * `eyre::Result<UiConfirmedBlock>` - Block data if successful
+///
+/// # Errors
+///
+/// Returns an error if all retry attempts fail
 async fn get_block(
     client: &RpcClient,
     config: RpcBlockConfig,
