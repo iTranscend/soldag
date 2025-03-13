@@ -75,6 +75,7 @@ There's a testing module to validate fuctionality of the application. Can be run
   <br>
 
 - In another terminal, make `curl` requests to fetch data from the API
+
   - Request for transactions. The transaction API endpoint is paginated
 
     ```console
@@ -83,8 +84,9 @@ There's a testing module to validate fuctionality of the application. Can be run
 
     <details>
     <summary>
-    Truncated sample response
+    Truncated response
     </summary>
+
     ```json
     {
       "data": [
@@ -141,6 +143,7 @@ There's a testing module to validate fuctionality of the application. Can be run
       "next": 10
     }
     ```
+
     </details>
 
   - Request for a transaction by its signature
@@ -195,6 +198,7 @@ There's a testing module to validate fuctionality of the application. Can be run
 
     <details>
     <summary>Truncated response</summary>
+
     ```json
     {
       "data": [
@@ -226,33 +230,37 @@ There's a testing module to validate fuctionality of the application. Can be run
       "next": 10
     }
     ```
+
     </details>
-  
+
   - Request for Account data by public key
+
     ```console
     curl "127.0.0.1:3004/accounts?pubkey=oQPnhXAbLbMuKHESaGrbXT17CyvWCpLyERSJA9HCYd7" | jq
     ```
+
     <details>
     <summary>Truncated response</summary>
+
     ```json
     {
       "data": {
         "lamports": 1141440,
         "data": [
-          2, 0, 0, 0, 41, 117, 101, 173, 128, 196, 26, 61, 165, 216, 89, 144, 59,
-          132, 58, 175
+          2, 0, 0, 0, 41, 117, 101, 173, 128, 196, 26, 61, 165, 216, 89, 144,
+          59, 132, 58, 175
         ],
         "owner": [
-          2, 168, 246, 145, 78, 136, 161, 176, 226, 16, 21, 62, 247, 99, 174, 43, 0,
-          194, 185, 61, 22, 193, 36, 210, 192, 83, 122, 16, 4, 128, 0, 0
+          2, 168, 246, 145, 78, 136, 161, 176, 226, 16, 21, 62, 247, 99, 174,
+          43, 0, 194, 185, 61, 22, 193, 36, 210, 192, 83, 122, 16, 4, 128, 0, 0
         ],
         "executable": true,
         "rentEpoch": 18446744073709551615
       }
     }
     ```
-    </details>
 
+    </details>
 
 ### Future improvements
 
