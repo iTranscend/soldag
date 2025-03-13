@@ -262,18 +262,20 @@ async fn catch_up(
     let task = |client: Arc<RpcClient>,
                 store_tx: UnboundedSender<(UiConfirmedBlock, u64)>,
                 (previous_block_slot, current_block_slot)| async move {
+        let start_slot = previous_block_slot + 1;
+        let end_slot = current_block_slot - 1;
         info!(
             "Missing {} blocks {} -> {}",
-            current_block_slot - previous_block_slot,
-            previous_block_slot,
-            current_block_slot
+            end_slot - start_slot + 1,
+            start_slot,
+            end_slot
         );
 
         let config = get_block_config();
 
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
 
-        for slot in previous_block_slot..current_block_slot {
+        for slot in start_slot..=end_slot {
             interval.tick().await;
             let block = get_block(&client, config, slot, &mut interval, 5).await?;
 
