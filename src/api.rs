@@ -5,7 +5,7 @@
 //! pagination and filtering. The API provides access to transaction history and
 //! account information.
 
-use std::{fmt::Debug, net::SocketAddr, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 use axum::{
     extract::{Query, State},
@@ -167,7 +167,7 @@ async fn fetch_account(
 ///
 /// * `eyre::Result<()>` - Runs indefinitely unless an error occurs
 pub async fn start(
-    api_listen: SocketAddr,
+    listener: tokio::net::TcpListener,
     storage: Arc<Storage>,
     indexer: Indexer,
 ) -> eyre::Result<()> {
@@ -176,9 +176,8 @@ pub async fn start(
         .route("/accounts", get(fetch_account))
         .with_state((storage, indexer));
 
-    info!("Starting API server on {}", api_listen);
+    info!("Starting API server on {}", listener.local_addr()?);
 
-    let listener = tokio::net::TcpListener::bind(api_listen).await?;
     axum::serve(listener, app).await?;
 
     Ok(())

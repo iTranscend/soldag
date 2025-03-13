@@ -48,8 +48,10 @@ async fn init() -> eyre::Result<()> {
         indexer::Indexer::new(args.rpc_url, args.rpc_api_key.as_deref(), storage.clone()).await?;
     let mut indexer_handle = tokio::spawn(indexer.clone().start(args.update_interval));
 
+    let listener = || tokio::net::TcpListener::bind(args.api_listen);
+
     let mut api_handle = tokio::spawn(api::start(
-        args.api_listen,
+        listener().await?,
         storage.clone(),
         indexer.clone(),
     ));
@@ -67,7 +69,7 @@ async fn init() -> eyre::Result<()> {
                 if let Ok(Err(e)) = res {
                     error!("API service failed: {}", e)
                 }
-                api_handle = tokio::spawn(api::start(args.api_listen, storage.clone(), indexer.clone()))
+                api_handle = tokio::spawn(api::start(listener().await?, storage.clone(), indexer.clone()))
 
             }
         }
