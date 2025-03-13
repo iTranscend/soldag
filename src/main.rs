@@ -18,6 +18,8 @@ mod cli;
 mod domain;
 pub mod indexer;
 mod logger;
+#[cfg(test)]
+mod tests;
 
 /// Initializes application services and starts processing.
 ///
@@ -42,7 +44,7 @@ async fn init() -> eyre::Result<()> {
 
     let args = cli::Args::parse();
 
-    let storage = Storage::init().await?;
+    let storage = Storage::init("soldag").await?;
 
     let indexer =
         indexer::Indexer::new(args.rpc_url, args.rpc_api_key.as_deref(), storage.clone()).await?;

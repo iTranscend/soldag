@@ -24,6 +24,10 @@ The API is a REST api leveraging the axum framework
 
 The application uses a noSQL MongoDB to store and query indexed data
 
+### Testing
+
+There's a testing module to validate fuctionality of the application. Can be run with `cargo test`
+
 ## Usage
 
 - Install [Rust](https://www.rust-lang.org/tools/install).

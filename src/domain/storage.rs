@@ -7,6 +7,7 @@
 use std::{env, sync::Arc};
 
 use chrono::{DateTime, Days, Utc};
+use eyre::Context;
 use mongodb::{
     bson::{doc, Document},
     options::FindOptions,
@@ -41,14 +42,14 @@ impl Storage {
     /// Returns an error if:
     /// * MongoDB connection fails
     /// * Database initialization fails
-    pub async fn init() -> eyre::Result<Arc<Self>> {
+    pub async fn init(db_name: &str) -> eyre::Result<Arc<Self>> {
         let uri = match env::var("MONGO_URI") {
             Ok(v) => v.to_string(),
             Err(_) => "mongodb://localhost:27017/?directConnection=true".to_string(),
         };
 
         let client = Client::with_uri_str(uri).await?;
-        let db = client.database("soldag");
+        let db = client.database(db_name);
 
         let transactions: Collection<Transaction> = db.collection("transactions");
 
@@ -76,8 +77,7 @@ impl Storage {
             .transactions
             .insert_one(transaction)
             .await
-            .ok()
-            .expect("Error inserting transaction");
+            .wrap_err("Error inserting transaction")?;
 
         Ok(result)
     }
